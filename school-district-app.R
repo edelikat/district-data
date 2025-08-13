@@ -1,7 +1,6 @@
 library(shiny)
 library(tidyverse)
 library(tidycensus)
-library(tigris)
 library(tidygeocoder)
 library(shinythemes)
 library(sf)
@@ -18,40 +17,42 @@ ui <- navbarPage(
         tabPanel(
                 title = "Step 1: Upload Shape Files",
                 value = "step1",
-                
                 fluidPage(
-                        titlePanel("👋 Welcome! This app will help you match each school in your state to it's legislative district."),
-                        h4("📍 First, you will find and upload your State's Legislative District Shape Files."),
-                        tags$ul(
-                                tags$li("Click the Button Below to Go to the US Census Website")),
+                        titlePanel("👋 Welcome! This app will help you match each school in your state to its legislative district."),
+                        h3("📍 First, you will find and upload your State's Legislative District Shape Files."),
+                        h4("1. Click the Button Below to Go to the US Census Website"),
                         tags$a(href = "https://www.census.gov/cgi-bin/geo/shapefiles/index.php", class = "btn btn-primary", target = "_blank", "Open Census.Gov"),
-                        tags$ul(
-                                tags$li("On that page, choose census year: 2024 and layer type: State Legislative Districts")),
-                        tags$img(src = "census_front.jpg", height = "250px"),
-                        
+                        h4("2. Choose census year: 2024 and layer type: State Legislative Districts"),
+                        tags$img(src = "census_front.jpg", height = "400px"),
+                        h4("3. Choose your state and download the .zip files for both chambers."),
+                        h5("Note: Lower Chamber is the House, and Upper Chamber is the Senate."),
+                        tags$img(src = "choosestate.jpg", height = "300px"),
+                        h4("4. Upload Your zip files below, then click Next."),
                         fileInput("house_zip", "Upload House District ZIP", accept = ".zip"),
                         fileInput("senate_zip", "Upload Senate District ZIP", accept = ".zip"),
                         actionButton("go_to_step2", "Next →", class = "btn-success")
                 )
-                
         ),
         
         # Tab 2:Upload Schools
         tabPanel(
-                title = "Step 2: Match Schools to Districts",
+                title = "Step 2: Upload Schools",
                 value = "step2",
                 
                 fluidPage(
-                        titlePanel("Match Schools to State Legislative Districts"),
-                        
-                        h4("📤 Upload Your School File"),
-                        helpText("📢 Your CSV should include either:"),
+                        titlePanel("Upload Your School File"),
+                        h4("🕵️ Be sure that your school file is a .csv file and is formated with one of the following combinations of columns:"),
                         tags$ul(
-                                tags$li("A column named 'full_address' with complete address text"),
-                                tags$li("OR separate columns: 'street_address', 'city', and 'state'")
+                                tags$li("'full_address', 'zipcode'"),
+                                tags$li("'street_address', 'city', 'state', and 'zipcode'")
                         ),
+                        h4("⚠️️ Before uploading, rename or create data columns if necessary. If your file does not match either format, the code will fail to match appropriately."),
+                        h4("📤 Upload Your School File"),
+                        
                         fileInput("school_file", "Upload CSV of Schools", accept = ".csv"),
                         uiOutput("address_validation_badge"),
+                        
+                        h4("👍 If your file uploaded successfully, click Next."),
                         
                         br(),
                         fluidRow(
@@ -69,7 +70,13 @@ ui <- navbarPage(
                 fluidPage(
                         titlePanel("Geocode Schools and Match Them to State Legislative Districts"),
                         
-                        
+                        h4("Now that you have uploaded all three files, it is time to geocode your school addresses and match them to districts."),
+                        h5("This is the longest step, and the one that is most prone to errors. If you have trouble, please reach out to emily@tnfamiliesforvaccines.org for help troubleshooting."),
+                        h5("When the process is complete, you will have two files to download:"),
+                        tags$ul(
+                                tags$li("Matched Schools - schools_with_house_and_senate.csv - Includes all schools successfully matched with their House and Senate districts."),
+                                tags$li("Unmatched Schools - unmatched_schools.csv - Includes all schools that were not able to be successfully matched with their districts. Unfortunately, these schools will have to be checked and matched manually.")
+                        ),
                         h4("💫 Click to Run Geocoding and Matching"),
                         
                         actionButton("run_match", "Run Matching", class = "btn-primary"),
@@ -85,10 +92,22 @@ ui <- navbarPage(
                         
                         br(),
                         fluidRow(
-                                column(6, actionButton("go_to_step2", "← Back", class = "btn-success"))
-                        )
-                )
-        ))
+                                column(6, actionButton("go_to_step4", "← Back", class = "btn-success"),
+                                       actionButton("4", "Next →", class = "btn-success"))
+                        ))
+                ),
+                
+                # Tab 4: Complete
+                tabPanel(
+                        title = "Step 4: Next Steps",
+                        value = "step4",
+                        
+                        fluidPage(
+                                titlePanel("🎉 You did it! 🎉"),
+                                
+                                h4("If you need help troubleshooting, please reach out to Emily."),
+                                h3("Coming Soon: An app to help you match school vax data to districts!"))
+                ))
 
 server <- function(input, output, session) {
         rv <- reactiveValues()
@@ -119,6 +138,7 @@ server <- function(input, output, session) {
                         # Step 1: Read uploaded school file
                         incProgress(0.1, detail = "Reading school file")
                         schools <- read_csv(input$school_file$datapath, show_col_types = FALSE)
+                       
                         
                         # Step 2: Geocode
                         incProgress(0.2, detail = "Geocoding addresses")
@@ -188,7 +208,7 @@ server <- function(input, output, session) {
                                         house_district = paste("House District", house_district),
                                         senate_district = paste("Senate District", senate_district)
                                 )
-                
+                        
                         
                         # Step 8: Setup download handlers
                         incProgress(0.05, detail = "Preparing downloads")
@@ -203,9 +223,8 @@ server <- function(input, output, session) {
                                 filename = function() { "unmatched_schools.csv" },
                                 content = function(file) {
                                         write_csv(unmatched_schools, file)
-                                }
-                        )
-        
+                                })
+                        
                 })  # closes withProgress
         })  # closes observeEvent(input$run_match)
         
@@ -219,7 +238,9 @@ server <- function(input, output, session) {
         observeEvent(input$go_to_step3, {
                 updateNavbarPage(session, "main_nav", selected = "step3")
         })
-        
+        observeEvent(input$go_to_step4, {
+                updateNavbarPage(session, "main_nav", selected = "step4")
+        })
         
         output$matched_table <- renderTable({
                 validate(
