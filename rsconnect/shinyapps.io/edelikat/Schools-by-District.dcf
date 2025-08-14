@@ -1,0 +1,13 @@
+name: Schools-by-District
+title: Schools-by-District
+username: edelikat
+account: edelikat
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 15202440
+bundleId: 10770386
+url: https://edelikat.shinyapps.io/Schools-by-District/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: school-district-app.R
